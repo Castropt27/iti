@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Métricas da aplicação Flask via Traefik
+  - job_name: 'flask-app'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['traefik:80']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: traefik:80
+
+  # Métricas dos containers via cAdvisor
+  - job_name: 'cadvisor'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Métricas do próprio Prometheus
+  - job_name: 'prometheus'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['prometheus:9090']

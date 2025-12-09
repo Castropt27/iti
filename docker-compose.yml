@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  flask-app:
+    build: .
+    restart: always  # Mudado de unless-stopped para always
+    environment:
+      - FILES_STORAGE_PATH=/data/files.json
+    volumes:
+      - /home/valdemarcastro/projetocliente:/data
+    networks:
+      - monitoring
+      - traefik_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flask.rule=Host(`localhost`)"
+      - "traefik.http.routers.flask.entrypoints=web"
+      - "traefik.http.services.flask.loadbalancer.server.port=8000"
+      
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    restart: always
+    ports:
+      - "80:80"
+      - "8081:8080"
+    command:
+      - "--api.dashboard=true"
+      - "--entrypoints.web.address=:80"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik_net"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik_net
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
+  traefik_net:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
