@@ -3,8 +3,10 @@ __pycache__/
 *.py[cod]
 *.so
 .Python
+.venv/
 venv/
 ENV/
+env/
 
 # Docker volumes
 prometheus_data/
