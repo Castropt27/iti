@@ -3,7 +3,7 @@ version: '3.8'
 services:
   flask-app:
     build: .
-    restart: always  # Mudado de unless-stopped para always
+    restart: always
     environment:
       - FILES_STORAGE_PATH=/data/files.json
     volumes:
@@ -16,6 +16,20 @@ services:
       - "traefik.http.routers.flask.rule=Host(`localhost`)"
       - "traefik.http.routers.flask.entrypoints=web"
       - "traefik.http.services.flask.loadbalancer.server.port=8000"
+
+  scale-webhook:
+    image: python:3.11-slim
+    container_name: scale-webhook
+    restart: always
+    volumes:
+      - ./:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    command: sh -c "pip install --no-cache-dir flask docker && python scale-webhook.py"
+    ports:
+      - "5001:5001"
+    networks:
+      - monitoring
       
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -41,10 +55,28 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
     networks:
       - monitoring
 
@@ -88,6 +120,8 @@ networks:
 
 volumes:
   prometheus_data:
+    driver: local
+  alertmanager_data:
     driver: local
   grafana_data:
     driver: local

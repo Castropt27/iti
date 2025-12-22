@@ -1,0 +1,64 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  # Rota padrão
+  receiver: 'default'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+
+  # Sub-rotas específicas
+  routes:
+    # Alertas críticos (Flask Down)
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # Alertas de warning
+    - match:
+        severity: warning
+      receiver: 'warning'
+      group_wait: 30s
+      repeat_interval: 1h
+
+    # Escala: throughput alto
+    - match:
+        severity: scaleup
+      receiver: 'default'
+      group_wait: 5s
+      repeat_interval: 10m
+
+    # Escala: throughput baixo
+    - match:
+        severity: scaledown
+      receiver: 'default'
+      group_wait: 5s
+      repeat_interval: 30m
+
+receivers:
+  # Receptor padrão (stdout - mostra no console do container)
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/alert'
+        send_resolved: true
+
+  # Receptor crítico
+  - name: 'critical'
+
+  # Receptor de warning
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/alert'
+        send_resolved: true
+
+inhibit_rules:
+  # Inibir warnings se houver um alerta crítico do mesmo tipo
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']

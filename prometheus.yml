@@ -2,19 +2,25 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - 'alert_rules.yml'
+
 scrape_configs:
-  # Métricas da aplicação Flask via Traefik
-  - job_name: 'flask-app'
+  # Métricas da aplicação Flask diretas (não via Traefik)
+  - job_name: 'flask-app-1'
     metrics_path: /metrics
     static_configs:
-      - targets: ['traefik:80']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: traefik:80
+      - targets: ['projeto_flask-app-1_1:8000']
+
+  - job_name: 'flask-app-2'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['projeto_flask-app-2_1:8000']
 
   # Métricas dos containers via cAdvisor
   - job_name: 'cadvisor'
@@ -28,8 +34,8 @@ scrape_configs:
     static_configs:
       - targets: ['prometheus:9090']
 
-  # Métricas da aplicação Flask no Kubernetes
-  - job_name: 'flask-k8s'
+  # Métricas do AlertManager
+  - job_name: 'alertmanager'
     metrics_path: /metrics
     static_configs:
-      - targets: ['192.168.1.10:30225']
+      - targets: ['alertmanager:9093']

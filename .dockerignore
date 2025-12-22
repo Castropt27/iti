@@ -1,0 +1,9 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+prometheus_data/
+grafana_data/
+projetocliente/
+.git/
+*.log
