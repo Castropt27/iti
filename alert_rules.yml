@@ -4,8 +4,13 @@ groups:
     rules:
       # Escala por Throughput de Rede (cAdvisor)
       - alert: ScaleUpNetworkThroughput
-        expr: sum(rate(container_network_receive_bytes_total{job="cadvisor", container_label_com_docker_compose_service=~"flask-app-.*"}[5m])) + sum(rate(container_network_transmit_bytes_total{job="cadvisor", container_label_com_docker_compose_service=~"flask-app-.*"}[5m])) > 5000
-        for: 2m
+        expr: |
+          sum(
+            rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[5m])
+          ) + sum(
+            rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[5m])
+          ) > 1000
+        for: 1m
         labels:
           severity: scaleup
         annotations:
@@ -14,7 +19,12 @@ groups:
 
       # (Opcional) Escala para baixo quando tráfego está baixo
       - alert: ScaleDownNetworkThroughput
-        expr: sum(rate(container_network_receive_bytes_total{job="cadvisor", container_label_com_docker_compose_service=~"flask-app-.*"}[10m])) + sum(rate(container_network_transmit_bytes_total{job="cadvisor", container_label_com_docker_compose_service=~"flask-app-.*"}[10m])) < 2000
+        expr: |
+          sum(
+            rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[10m])
+          ) + sum(
+            rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[10m])
+          ) < 2000
         for: 10m
         labels:
           severity: scaledown

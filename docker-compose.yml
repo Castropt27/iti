@@ -21,6 +21,7 @@ services:
     image: python:3.11-slim
     container_name: scale-webhook
     restart: always
+    user: root
     volumes:
       - ./:/app
       - /var/run/docker.sock:/var/run/docker.sock
