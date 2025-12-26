@@ -134,5 +134,46 @@ def health():
     """
     return jsonify({'status': 'healthy'}), 200
 
+
+@app.route('/files', methods=['DELETE'])
+def delete_file():
+        """
+        Delete a file by filename
+        ---
+        parameters:
+            - name: body
+                in: body
+                required: false
+                schema:
+                    type: object
+                    properties:
+                        filename:
+                            type: string
+            - name: filename
+                in: query
+                required: false
+                type: string
+        responses:
+            200:
+                description: File deleted
+            400:
+                description: filename required
+            404:
+                description: file not found
+        """
+        data = request.get_json(silent=True) or {}
+        filename = data.get('filename') or request.args.get('filename')
+        if not filename:
+                return jsonify({'error': 'filename is required'}), 400
+
+        files = load_files()
+        if filename not in files:
+                return jsonify({'error': 'file not found'}), 404
+
+        files = [f for f in files if f != filename]
+        save_files(files)
+
+        return jsonify({'message': 'File deleted', 'file': filename}), 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=False)
