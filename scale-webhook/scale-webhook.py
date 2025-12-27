@@ -8,6 +8,11 @@ import subprocess
 app = Flask(__name__)
 client = docker.from_env()
 
+# runtime protection: cooldown between actions per alert/group
+COOLDOWN_SECONDS = int(os.environ.get('COOLDOWN_SECONDS', '60'))
+# keep last action timestamps per (alertname, groupKey) to avoid duplicate handling
+last_actions = {}
+
 # configuration
 SERVICE_LABEL = os.environ.get('SERVICE_LABEL', 'flask-app')
 MIN_REPLICAS = int(os.environ.get('MIN_REPLICAS', '1'))
@@ -148,9 +153,9 @@ def alert():
     payload = request.get_json()
     if not payload:
         return jsonify({'error': 'bad payload'}), 400
-
     results = []
     alerts = payload.get('alerts') or []
+    group_key = payload.get('groupKey') or payload.get('group_hash') or ''
     for a in alerts:
         labels = a.get('labels', {})
         alertname = labels.get('alertname')
@@ -164,6 +169,14 @@ def alert():
             results.append({'alert': alertname, 'action': 'ignored_resolved'})
             continue
 
+        # deduplicate / cooldown: use (alertname, group_key) pair
+        key = f"{alertname}:{group_key}"
+        now = time.time()
+        last = last_actions.get(key, 0)
+        if now - last < COOLDOWN_SECONDS:
+            results.append({'alert': alertname, 'action': 'skipped_cooldown', 'since_last_sec': now - last})
+            continue
+
         if alertname == 'ScaleUpNetworkThroughput':
             cur = current_replicas()
             desired = min(cur + SCALE_STEP, MAX_REPLICAS)
@@ -174,6 +187,9 @@ def alert():
                 created = []
                 try:
                     run_compose_scale(desired)
+                    # record action
+                    last_actions[key] = time.time()
+                    print(f"[scale-webhook] scaled up via compose {cur} -> {desired} for {key}")
                     results.append({'alert': alertname, 'action': 'scaled_up_compose', 'from': cur, 'to': desired})
                 except Exception:
                     # fallback: create containers via SDK (labelled)
@@ -183,6 +199,9 @@ def alert():
                             created.append(c.name)
                         except Exception as e:
                             results.append({'alert': alertname, 'error': str(e)})
+                    # record action
+                    last_actions[key] = time.time()
+                    print(f"[scale-webhook] scaled up via sdk {cur} -> {desired} for {key}, created={created}")
                     results.append({'alert': alertname, 'action': 'scaled_up', 'from': cur, 'to': desired, 'created': created})
         elif alertname == 'ScaleDownNetworkThroughput':
             cur = current_replicas()
@@ -212,12 +231,16 @@ def alert():
                         # Prefer docker-compose scale if available
                         try:
                             run_compose_scale(desired)
+                            last_actions[key] = time.time()
+                            print(f"[scale-webhook] scaled down via compose {cur} -> {desired} for {key}")
                             results.append({'alert': alertname, 'action': 'scaled_down_compose', 'from': cur, 'to': desired})
                         except Exception:
                             removed = []
                             for i in range(cur - desired):
                                 ok, info = remove_one_container()
                                 removed.append({'ok': ok, 'info': info})
+                            last_actions[key] = time.time()
+                            print(f"[scale-webhook] scaled down via sdk {cur} -> {desired} for {key}, removed={removed}")
                             results.append({'alert': alertname, 'action': 'scaled_down', 'from': cur, 'to': desired, 'removed': removed})
         else:
             results.append({'alert': labels.get('alertname'), 'action': 'ignored'})
