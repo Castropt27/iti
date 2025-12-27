@@ -18,15 +18,15 @@ services:
       - "traefik.http.services.flask.loadbalancer.server.port=8000"
 
   scale-webhook:
-    image: python:3.11-slim
+    build:
+      context: ./scale-webhook
     container_name: scale-webhook
     restart: always
     user: root
     volumes:
-      - ./:/app
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir flask docker && python scale-webhook.py"
+    command: ["python", "scale-webhook.py"]
     ports:
       - "5001:5001"
     networks:
@@ -103,6 +103,8 @@ services:
       - "8081:8080"
     command:
       - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--log.level=DEBUG"
       - "--entrypoints.web.address=:80"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"

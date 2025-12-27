@@ -31,6 +31,7 @@ groups:
         annotations:
           summary: "Throughput de rede baixo nos Flask apps"
           description: "Total RX+TX < 2KB/s por 10m. Considerar remover réplicas. Valor: {{ $value }} B/s"
+          value: "{{ $value }}"
       # Alerta: Flask app indisponível
       - alert: FlaskAppDown
         expr: up{job=~"flask-app-1|flask-app-2"} == 0
