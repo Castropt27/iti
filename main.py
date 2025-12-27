@@ -175,5 +175,50 @@ def delete_file():
 
         return jsonify({'message': 'File deleted', 'file': filename}), 200
 
+
+@app.route('/files', methods=['PUT', 'PATCH'])
+def update_file():
+        """
+        Update (rename) a file
+        ---
+        parameters:
+            - name: body
+                in: body
+                required: true
+                schema:
+                    type: object
+                    properties:
+                        filename:
+                            type: string
+                        old_filename:
+                            type: string
+                        new_filename:
+                            type: string
+        responses:
+            200:
+                description: File updated
+            400:
+                description: bad request
+            404:
+                description: file not found
+        """
+        data = request.get_json(silent=True) or {}
+        # accept either 'filename' or 'old_filename' for backward compatibility
+        old = data.get('old_filename') or data.get('filename')
+        new = data.get('new_filename')
+        if not old or not new:
+                return jsonify({'error': 'old_filename and new_filename are required'}), 400
+
+        files = load_files()
+        if old not in files:
+                return jsonify({'error': 'file not found'}), 404
+        if new in files:
+                return jsonify({'error': 'new filename already exists'}), 400
+
+        files = [new if f == old else f for f in files]
+        save_files(files)
+
+        return jsonify({'message': 'File updated', 'old': old, 'new': new}), 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=False)
