@@ -11,7 +11,7 @@ client = docker.from_env()
 # configuration
 SERVICE_LABEL = os.environ.get('SERVICE_LABEL', 'flask-app')
 MIN_REPLICAS = int(os.environ.get('MIN_REPLICAS', '1'))
-MAX_REPLICAS = int(os.environ.get('MAX_REPLICAS', '3'))
+MAX_REPLICAS = int(os.environ.get('MAX_REPLICAS', '2'))
 SCALE_STEP = int(os.environ.get('SCALE_STEP', '1'))
 DATA_VOLUME_HOST = os.environ.get('DATA_VOLUME_HOST', '/home/valdemarcastro/projetocliente')
 DATA_VOLUME_CONTAINER = os.environ.get('DATA_VOLUME_CONTAINER', '/data')
@@ -24,6 +24,28 @@ LABELS = {
     'com.docker.compose.service': SERVICE_LABEL,
 }
 NETWORKS = ['monitoring', 'traefik_net']
+
+
+def find_traefik_network():
+    # prefer project-prefixed network if present, otherwise fallback to any network containing 'traefik'
+    try:
+        nets = client.networks.list()
+        names = [n.name for n in nets]
+        # common compose prefixed name
+        for candidate in names:
+            if candidate.endswith('traefik_net'):
+                return candidate
+        for candidate in names:
+            if 'traefik' in candidate:
+                return candidate
+    except Exception:
+        pass
+    return 'traefik_net'
+
+# determine traefik network name at runtime
+TRAEFIK_NETWORK = find_traefik_network()
+# expose the traefik network name to Traefik via label so Traefik picks the correct network
+LABELS['traefik.docker.network'] = TRAEFIK_NETWORK
 
 
 def get_service_containers():
@@ -69,7 +91,7 @@ def create_container():
             environment=env,
             volumes=volumes,
             restart_policy={"Name": "always"},
-            network=NETWORKS[0],
+            network=TRAEFIK_NETWORK,
         )
     except Exception:
         # fallback: create container without mounting host volume (some hosts/NFS prevent bind)
@@ -79,10 +101,11 @@ def create_container():
             labels=LABELS,
             environment=env,
             restart_policy={"Name": "always"},
-            network=NETWORKS[0],
+            network=TRAEFIK_NETWORK,
         )
     # connect to other networks if any
-    for net in NETWORKS[1:]:
+    # ensure it's also connected to monitoring network if available
+    for net in NETWORKS:
         try:
             network = client.networks.get(net)
             network.connect(container)

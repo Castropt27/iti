@@ -6,9 +6,9 @@ groups:
       - alert: ScaleUpNetworkThroughput
         expr: |
           sum(
-            rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[5m])
+            rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[1m])
           ) + sum(
-            rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[5m])
+            rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[1m])
           ) > 1000
         for: 1m
         labels:
@@ -21,73 +21,15 @@ groups:
       - alert: ScaleDownNetworkThroughput
         expr: |
           sum(
-            rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[10m])
+            rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[2m])
           ) + sum(
-            rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[10m])
-          ) < 2000
-        for: 10m
+            rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[2m])
+          ) < 1000
+        for: 1m
         labels:
           severity: scaledown
         annotations:
           summary: "Throughput de rede baixo nos Flask apps"
           description: "Total RX+TX < 2KB/s por 10m. Considerar remover réplicas. Valor: {{ $value }} B/s"
           value: "{{ $value }}"
-      # Alerta: Flask app indisponível
-      - alert: FlaskAppDown
-        expr: up{job=~"flask-app-1|flask-app-2"} == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Flask app {{ $labels.job }} indisponível"
-          description: "O serviço {{ $labels.job }} não está a responder"
-
-      # Alerta: Alta taxa de uploads (métrica escolhida para escalar dinamicamente)
-      - alert: HighFileUploadRate
-        expr: rate(files_uploaded_total[5m]) > 0.2
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Alta taxa de uploads detectada"
-          description: "Taxa de uploads: {{ $value }} uploads/segundo. Considerar escalar os resources."
-
-      # Alerta: Número de ficheiros muito elevado
-      - alert: LargeFileStorageSize
-        expr: files_array_size > 100
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Armazenamento de ficheiros elevado"
-          description: "Número de ficheiros: {{ $value }}. Considerar limpeza."
-
-      # Alerta: Tamanho do ficheiro JSON crescendo rapidamente
-      - alert: JsonFileSizeIncreasing
-        expr: rate(json_file_size_bytes[5m]) > 1024
-        for: 3m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Tamanho do ficheiro JSON a crescer rapidamente"
-          description: "Taxa de crescimento: {{ $value }} bytes/segundo"
-
-      # Alerta: Operações NFS lentas
-      - alert: SlowNFSOperations
-        expr: histogram_quantile(0.95, nfs_file_operation_seconds) > 1
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Operações NFS lentas detectadas"
-          description: "Latência P95 das operações NFS: {{ $value }}s"
-
-      # Alerta: Taxa de erro elevada
-      - alert: HighErrorRate
-        expr: rate(flask_http_requests_total{status=~"5.."}[5m]) > 0.05
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Taxa de erros elevada"
-          description: "Taxa de erros 5xx: {{ $value }} requests/segundo"
+     

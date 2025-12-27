@@ -1,0 +1,10 @@
+{
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {"alertname": "ScaleUpNetworkThroughput"},
+      "annotations": {}
+    }
+  ]
+}
