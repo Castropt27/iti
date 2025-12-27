@@ -37,7 +37,7 @@ route:
         severity: scaledown
       receiver: 'default'
       group_wait: 5s
-      repeat_interval: 30m
+      repeat_interval: 1m
 
 receivers:
   # Receptor padrão (stdout - mostra no console do container)

@@ -9,7 +9,7 @@ groups:
             rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[1m])
           ) + sum(
             rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[1m])
-          ) > 1000
+          ) > 5000
         for: 1m
         labels:
           severity: scaleup
@@ -24,7 +24,7 @@ groups:
             rate(container_network_receive_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[2m])
           ) + sum(
             rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="flask-app",interface="eth0"}[2m])
-          ) < 1000
+          ) < 5000
         for: 1m
         labels:
           severity: scaledown
